@@ -1,6 +1,22 @@
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::hash::Hash;
+
 /// `InputCellId` is a unique identifier for an input cell.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct InputCellId();
+#[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
+pub struct InputCellId<T> {
+    id: usize,
+    value: T,
+}
+
+impl <T> InputCellId<T> {
+    fn new(value: T) -> Self {
+        Self {
+            id: 0,
+            value,
+        }
+    }
+}
 /// `ComputeCellId` is a unique identifier for a compute cell.
 /// Values of type `InputCellId` and `ComputeCellId` should not be mutually assignable,
 /// demonstrated by the following tests:
@@ -15,15 +31,19 @@ pub struct InputCellId();
 /// let input = r.create_input(111);
 /// let compute: react::InputCellId = r.create_compute(&[react::CellId::Input(input)], |_| 222).unwrap();
 /// ```
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct ComputeCellId();
+#[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
+pub struct ComputeCellId<T: 'static> {
+    id: usize,
+    deps: &'static [CellId<T>], //These are the cells used to calculate value
+    value: T,
+}
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CallbackId();
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum CellId {
-    Input(InputCellId),
-    Compute(ComputeCellId),
+#[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
+pub enum CellId<T: 'static> {
+    Input(InputCellId<T>),
+    Compute(ComputeCellId<T>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -32,21 +52,23 @@ pub enum RemoveCallbackError {
     NonexistentCallback,
 }
 
-pub struct Reactor<T> {
-    // Just so that the compiler doesn't complain about an unused type parameter.
-    // You probably want to delete this field.
-    dummy: ::std::marker::PhantomData<T>,
+pub struct Reactor<T: 'static> {
+    store: HashMap<CellId<T>, Vec<CellId<T>>>
 }
 
 // You are guaranteed that Reactor will only be tested against types that are Copy + PartialEq.
-impl<T: Copy + PartialEq> Reactor<T> {
+impl<T: Copy + PartialEq + Debug + Hash + Eq + 'static> Reactor<T> {
     pub fn new() -> Self {
-        unimplemented!()
+        Self {
+            store: HashMap::new(),
+        }
     }
 
     // Creates an input cell with the specified initial value, returning its ID.
-    pub fn create_input(&mut self, _initial: T) -> InputCellId {
-        unimplemented!()
+    pub fn create_input(&mut self, initial: T) -> InputCellId<T> {
+        let ic = InputCellId::new(initial);
+        self.store.insert(CellId::Input(ic), vec![]);
+        todo!()
     }
 
     // Creates a compute cell with the specified dependencies and compute function.
@@ -64,9 +86,9 @@ impl<T: Copy + PartialEq> Reactor<T> {
     // time they will continue to exist as long as the Reactor exists.
     pub fn create_compute<F: Fn(&[T]) -> T>(
         &mut self,
-        _dependencies: &[CellId],
+        _dependencies: &[CellId<T>],
         _compute_func: F,
-    ) -> Result<ComputeCellId, CellId> {
+    ) -> Result<ComputeCellId<T>, CellId<T>> {
         unimplemented!()
     }
 
@@ -77,7 +99,7 @@ impl<T: Copy + PartialEq> Reactor<T> {
     //
     // It turns out this introduces a significant amount of extra complexity to this exercise.
     // We chose not to cover this here, since this exercise is probably enough work as-is.
-    pub fn value(&self, id: CellId) -> Option<T> {
+    pub fn value(&self, id: CellId<T>) -> Option<T> {
         unimplemented!("Get the value of the cell whose id is {:?}", id)
     }
 
@@ -89,7 +111,7 @@ impl<T: Copy + PartialEq> Reactor<T> {
     // a `set_value(&mut self, new_value: T)` method on `Cell`.
     //
     // As before, that turned out to add too much extra complexity.
-    pub fn set_value(&mut self, _id: InputCellId, _new_value: T) -> bool {
+    pub fn set_value(&mut self, _id: InputCellId<T>, _new_value: T) -> bool {
         unimplemented!()
     }
 
@@ -107,7 +129,7 @@ impl<T: Copy + PartialEq> Reactor<T> {
     //   set_value call.
     pub fn add_callback<F: FnMut(T)>(
         &mut self,
-        _id: ComputeCellId,
+        _id: ComputeCellId<T>,
         _callback: F,
     ) -> Option<CallbackId> {
         unimplemented!()
@@ -120,7 +142,7 @@ impl<T: Copy + PartialEq> Reactor<T> {
     // A removed callback should no longer be called.
     pub fn remove_callback(
         &mut self,
-        cell: ComputeCellId,
+        cell: ComputeCellId<T>,
         callback: CallbackId,
     ) -> Result<(), RemoveCallbackError> {
         unimplemented!(

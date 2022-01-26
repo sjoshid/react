@@ -1,6 +1,22 @@
 use react::*;
 
 #[test]
+#[ignore]
+fn sj_is_cycle_allowed() {
+    let mut reactor = Reactor::new();
+    let one = reactor.create_input(1);
+    let two = reactor.create_input(2);
+    let output = reactor
+        .create_compute(&[CellId::Input(one), CellId::Input(two)], |v| {
+            v[0] + v[1] * 10
+        })
+        .unwrap();
+    let o2 = reactor.create_compute(&[CellId::Compute(output), CellId::Input(one)], |v|0);
+
+    assert_eq!(reactor.value(CellId::Compute(output)), Some(21));
+}
+
+#[test]
 fn input_cells_have_a_value() {
     let mut reactor = Reactor::new();
     let input = reactor.create_input(10);
