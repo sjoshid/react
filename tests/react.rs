@@ -11,7 +11,7 @@ fn sj_is_cycle_allowed() {
             v[0] + v[1] * 10
         })
         .unwrap();
-    let o2 = reactor.create_compute(&[CellId::Compute(output), CellId::Input(one)], |v|0);
+    let o2 = reactor.create_compute(&[CellId::Compute(output), CellId::Input(one)], |v| 0);
 
     assert_eq!(reactor.value(CellId::Compute(output)), Some(21));
 }
