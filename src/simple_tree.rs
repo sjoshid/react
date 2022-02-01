@@ -1,5 +1,6 @@
 use crate::CellId;
-use std::cell::{RefCell, RefMut};
+use std::cell::RefCell;
+use std::fmt::Debug;
 use std::rc::{Rc, Weak};
 
 enum Type<T> {
@@ -21,15 +22,15 @@ impl<T: Copy> Clone for Type<T> {
 }
 
 pub struct Node<T> {
-    value: T,
+    node_value: T,
     t: Type<T>,
 }
 
-impl<T: Copy> Node<T> {
-    pub fn new_ic(value: T) -> Self {
+impl<T: Copy + Debug> Node<T> {
+    pub fn create_input(value: T) -> Self {
         Self {
-            value,
-            t: Type::IC(None),
+            node_value: value,
+            t: Type::IC(Some(vec![])),
         }
     }
 
@@ -39,15 +40,15 @@ impl<T: Copy> Node<T> {
     ) -> Result<Rc<RefCell<Node<T>>>, CellId> {
         let vals: Vec<T> = children
             .iter()
-            .flat_map(|v| v.iter().map(|e| e.borrow().value))
+            .flat_map(|v| v.iter().map(|e| e.borrow().node_value))
             .collect();
         let vals = vals.as_slice();
         let value = compute_func(vals);
 
         let c1 = children.clone();
         let cc = Self {
-            value,
-            t: Type::CC(None, children, Rc::new(compute_func)),
+            node_value: value,
+            t: Type::CC(Some(vec![]), children, Rc::new(compute_func)),
         };
         let rc = Rc::new(RefCell::new(cc));
 
@@ -59,7 +60,7 @@ impl<T: Copy> Node<T> {
                         parent.push(Rc::downgrade(&w));
                     }
                 }
-                Type::CC(p, c, cf) => {
+                Type::CC(p, _c, _cf) => {
                     if let Some(parent) = p.as_mut() {
                         let w = rc.clone();
                         parent.push(Rc::downgrade(&w));
@@ -74,24 +75,31 @@ impl<T: Copy> Node<T> {
     pub fn set_value(&mut self, value: T) {
         match &mut self.t {
             Type::IC(p) => {
-                self.value = value;
+                self.node_value = value;
                 if let Some(parents) = p.as_mut() {
-                    parents.iter_mut().for_each(|p| {
+                    parents.iter().for_each(|p| {
                         if let Some(n) = p.upgrade() {
-                            match &n.borrow_mut().t {
-                                Type::IC(_) => { /*invalid*/ }
+                            let mut mut_borrow_parent = n.borrow_mut();
+                            match &mut_borrow_parent.t {
+                                Type::IC(_) => {
+                                    panic!("IC cannot be parent!")
+                                }
                                 Type::CC(_, c, cf) => {
                                     let mut values = vec![];
                                     if let Some(children) = c.as_ref() {
                                         children.iter().for_each(|c| {
-                                            values.push(c.borrow().value);
+                                            if c.try_borrow().is_ok() {
+                                                values.push(c.borrow().node_value);
+                                            } else {
+                                                values.push(value);
+                                            }
                                         })
                                     }
                                     let new_value = cf(values.as_slice());
-                                    n.borrow_mut().value = new_value;
+                                    mut_borrow_parent.node_value = new_value;
                                 }
                             }
-                            n.borrow_mut().set_value(value);
+                            mut_borrow_parent.set_value(value);
                         }
                     })
                 }
@@ -100,24 +108,30 @@ impl<T: Copy> Node<T> {
                 let mut values = vec![];
                 if let Some(children) = c.as_ref() {
                     children.iter().for_each(|c| {
-                        values.push(c.borrow().value);
+                        values.push(c.borrow().node_value);
                     })
                 }
-                self.value = cf(values.as_slice());
+                self.node_value = cf(values.as_slice());
 
                 if let Some(parents) = p.as_mut() {
                     parents.iter_mut().for_each(|p| {
                         if let Some(n) = p.upgrade() {
                             match &n.borrow_mut().t {
-                                Type::IC(_) => { /*invalid*/ }
+                                Type::IC(_) => {
+                                    panic!("IC cannot be parent!")
+                                }
                                 Type::CC(_, c, cc_cf) => {
                                     let mut values = vec![];
                                     if let Some(children) = c.as_ref() {
                                         children.iter().for_each(|c| {
-                                            values.push(c.borrow().value);
+                                            if c.try_borrow().is_ok() {
+                                                values.push(c.borrow().node_value);
+                                            } else {
+                                                //values.push(self.node_value);
+                                            }
                                         })
                                     }
-                                    n.borrow_mut().value = cc_cf(values.as_slice());
+                                    n.borrow_mut().node_value = cc_cf(values.as_slice());
                                 }
                             }
                             n.borrow_mut().set_value(value);
@@ -126,5 +140,9 @@ impl<T: Copy> Node<T> {
                 }
             }
         }
+    }
+
+    pub fn get_value(&self) -> T {
+        self.node_value
     }
 }

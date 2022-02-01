@@ -1,12 +1,13 @@
+extern crate core;
+
 mod simple_tree;
 
 pub use simple_tree::Node;
 
-use std::borrow::Borrow;
-use std::cell::Cell;
-use std::collections::{HashMap, HashSet};
+use std::cell::RefCell;
 use std::fmt::Debug;
 use std::hash::Hash;
+use std::rc::Rc;
 
 /// `InputCellId` is a unique identifier for an input cell.
 #[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
@@ -15,35 +16,21 @@ pub struct InputCellId {
 }
 
 impl InputCellId {
-    fn new() -> CellId {
-        let id = Self { id: 0 };
-        CellId::Input(id)
+    fn new(index: usize) -> InputCellId {
+        let id = Self { id: index };
+        id
     }
 }
 
-/// `ComputeCellId` is a unique identifier for a compute cell.
-/// Values of type `InputCellId` and `ComputeCellId` should not be mutually assignable,
-/// demonstrated by the following tests:
-///
-/// ```compile_fail
-/// let mut r = react::Reactor::new();
-/// let input: react::ComputeCellId = r.create_input(111);
-/// ```
-///
-/// ```compile_fail
-/// let mut r = react::Reactor::new();
-/// let input = r.create_input(111);
-/// let compute: react::InputCellId = r.create_compute(&[react::CellId::Input(input)], |_| 222).unwrap();
-/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
 pub struct ComputeCellId {
     id: usize,
 }
 
 impl ComputeCellId {
-    fn new() -> CellId {
-        let id = Self { id: 0 };
-        CellId::Compute(id)
+    fn new(index: usize) -> ComputeCellId {
+        let id = Self { id: index };
+        id
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -92,72 +79,65 @@ impl From<CellId> for usize {
     }
 }
 
-struct Detail<T> {
-    //id: CellId,
-    value: T,
-    required_by: Option<Vec<usize>>,
-    dependent_on: Option<Vec<usize>>,
-    compute_function: Option<Box<dyn Fn(&[T]) -> T>>,
-}
-
-impl<T: Copy> Detail<T> {
-    fn get_detail_reqs<'a, 'b: 'a>(
-        &self,
-        store: &'b mut Vec<Detail<T>>,
-    ) -> Option<Vec<&'a mut Detail<T>>> {
-        if let Some(v) = self.required_by.as_ref() {
-            let mut hm: HashMap<_, _> = store.into_iter().enumerate().collect();
-            let r = v.into_iter().flat_map(|index| hm.remove(index)).collect();
-            Some(r)
-        } else {
-            None
-        }
-    }
-}
-
 pub struct Reactor<T> {
-    store: Vec<Detail<T>>,
+    store: Vec<Rc<RefCell<Node<T>>>>,
+    counter: usize,
 }
 
 // You are guaranteed that Reactor will only be tested against types that are Copy + PartialEq.
-impl<T: Copy> Reactor<T> {
+impl<T: Copy + Debug> Reactor<T> {
     //sj_todo what is T is not copyable?
     pub fn new() -> Self {
-        Self { store: vec![] }
+        Self {
+            store: vec![],
+            counter: 0,
+        }
     }
 
     // Creates an input cell with the specified initial value, returning its ID.
     pub fn create_input(&mut self, initial: T) -> InputCellId {
-        let ic = InputCellId::new();
-        let d = Detail {
-            value: initial,
-            required_by: None,
-            dependent_on: None,
-            compute_function: None,
-        };
-        self.store.insert(ic.into(), d);
-        ic.into()
+        let index = self.counter;
+
+        let ic = Node::create_input(initial);
+        let rc_p1 = Rc::new(RefCell::new(ic));
+        self.store.insert(index, rc_p1.clone());
+        self.counter = self.counter + 1;
+        InputCellId::new(index)
     }
 
-    // Creates a compute cell with the specified dependencies and compute function.
-    // The compute function is expected to take in its arguments in the same order as specified in
-    // `dependencies`.
-    // You do not need to reject compute functions that expect more arguments than there are
-    // dependencies (how would you check for this, anyway?).
-    //
-    // If any dependency doesn't exist, returns an Err with that nonexistent dependency.
-    // (If multiple dependencies do not exist, exactly which one is returned is not defined and
-    // will not be tested)
-    //
-    // Notice that there is no way to *remove* a cell.
-    // This means that you may assume, without checking, that if the dependencies exist at creation
-    // time they will continue to exist as long as the Reactor exists.
     pub fn create_compute<F: 'static + Fn(&[T]) -> T>(
         &mut self,
         dependencies: &[CellId],
         compute_func: F,
     ) -> Result<ComputeCellId, CellId> {
-        let cc = ComputeCellId::new();
+        let mut deps = Vec::with_capacity(dependencies.len());
+
+        for cell_id in dependencies {
+            match cell_id {
+                CellId::Input(ic) => {
+                    if let Some(n) = self.store.get(ic.id) {
+                        deps.push(n.clone());
+                    } else {
+                        return Err(*cell_id);
+                    }
+                }
+                CellId::Compute(cc) => {
+                    if let Some(n) = self.store.get(cc.id) {
+                        deps.push(n.clone());
+                    } else {
+                        return Err(*cell_id);
+                    }
+                }
+            }
+        }
+
+        let index = self.counter;
+        if let Ok(cc) = Node::create_compute(Some(deps), compute_func) {
+            self.store.insert(index, cc.clone());
+            self.counter = self.counter + 1;
+        }
+        Ok(ComputeCellId::new(index))
+        /*let cc = ComputeCellId::new();
         let mut dependent_on = vec![];
         let deps: Vec<T> = dependencies
             .iter()
@@ -188,7 +168,7 @@ impl<T: Copy> Reactor<T> {
                 d.required_by = Some(v);
             }
         }
-        Ok(cc.into())
+        Ok(cc.into())*/
     }
 
     // Retrieves the current value of the cell, or None if the cell does not exist.
@@ -200,28 +180,11 @@ impl<T: Copy> Reactor<T> {
     // We chose not to cover this here, since this exercise is probably enough work as-is.
     pub fn value(&self, id: CellId) -> Option<T> {
         let index: usize = id.into();
-        let v = self.store.get(index);
-        v.map(|d| d.value)
-    }
-
-    fn set_new_value(&mut self, ic: InputCellId, new_value: T) -> Option<Vec<usize>> {
-        let index = ic.id;
-        if let Some(d) = self.store.get_mut(index) {
-            d.value = new_value;
-            d.required_by.clone()
+        if let Some(v) = self.store.get(index) {
+            let value = v.as_ref().borrow().get_value();
+            Some(value)
         } else {
             None
-        }
-    }
-    fn calculate_new_value(&self, detail: &mut Detail<T>) {
-        if let Some(cf) = detail.compute_function.as_ref() {
-            if let Some(v) = detail.dependent_on.as_ref() {
-                let values: Vec<T> = v
-                    .iter()
-                    .map(|e| self.store.get(*e).unwrap().value)
-                    .collect();
-                detail.value = cf(values.as_slice());
-            }
         }
     }
 
@@ -234,20 +197,10 @@ impl<T: Copy> Reactor<T> {
     //
     // As before, that turned out to add too much extra complexity.
     pub fn set_value(&mut self, ic: InputCellId, new_value: T) -> bool {
-        // if ic doesnt exist in store we return false
-        if let Some(indexes) = self.set_new_value(ic, new_value) {
-            let mut details: Vec<&mut Detail<T>> = self
-                .store
-                .iter_mut()
-                .enumerate()
-                .filter_map(|(i, d)| if indexes.contains(&i) { Some(d) } else { None })
-                .collect();
-
-            for d in details.drain(0..) {
-                //self.calculate_new_value(d);
-            }
-
-            todo!();
+        let index: usize = ic.id;
+        if let Some(v) = self.store.get(index) {
+            let mut node = v.as_ref().borrow_mut();
+            node.set_value(new_value);
             true
         } else {
             false
@@ -291,3 +244,54 @@ impl<T: Copy> Reactor<T> {
         )
     }
 }
+
+/*
+Following function are not used.
+
+
+    fn set_new_value(&mut self, ic: InputCellId, new_value: T) -> Option<Vec<usize>> {
+        /*let index = ic.id;
+        if let Some(d) = self.store.get_mut(index) {
+            d.value = new_value;
+            d.required_by.clone()
+        } else {
+            None
+        }*/
+        todo!()
+    }
+
+    fn calculate_new_value(&self, detail: &mut Detail<T>) {
+        /*if let Some(cf) = detail.compute_function.as_ref() {
+            if let Some(v) = detail.dependent_on.as_ref() {
+                let values: Vec<T> = v
+                    .iter()
+                    .map(|e| self.store.get(*e).unwrap().value)
+                    .collect();
+                detail.value = cf(values.as_slice());
+            }
+        }*/
+        todo!()
+    }
+ */
+/*struct Detail<T> {
+    //id: CellId,
+    value: T,
+    required_by: Option<Vec<usize>>,
+    dependent_on: Option<Vec<usize>>,
+    compute_function: Option<Box<dyn Fn(&[T]) -> T>>,
+}
+
+impl<T: Copy> Detail<T> {
+    fn get_detail_reqs<'a, 'b: 'a>(
+        &self,
+        store: &'b mut Vec<Detail<T>>,
+    ) -> Option<Vec<&'a mut Detail<T>>> {
+        if let Some(v) = self.required_by.as_ref() {
+            let mut hm: HashMap<_, _> = store.into_iter().enumerate().collect();
+            let r = v.into_iter().flat_map(|index| hm.remove(index)).collect();
+            Some(r)
+        } else {
+            None
+        }
+    }
+}*/
