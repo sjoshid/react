@@ -1,4 +1,21 @@
+use std::rc::Rc;
 use react::*;
+use react::Node;
+
+#[test]
+#[ignore]
+fn sj_new_simple_tree() {
+    let mut p1 = Node::new_ic(0);
+    let mut p2 = Node::new_ic(1);
+    let rc_p1 = Rc::new(p1);
+    let rc_p2 = Rc::new(p2);
+    let v = vec![rc_p1, rc_p2];
+    if let Ok(mut n) = Node::create_compute(Some(v), |a: &[u32]|{
+        a[0] + a[1]
+    }) {
+        n.set_value(5);
+    }
+}
 
 #[test]
 #[ignore]

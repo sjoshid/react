@@ -1,3 +1,7 @@
+mod simple_tree;
+
+pub use simple_tree::Node;
+
 use std::borrow::Borrow;
 use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
@@ -51,44 +55,10 @@ pub enum CellId {
     Compute(ComputeCellId),
 }
 
-struct Detail<T> {
-    //id: CellId,
-    value: T,
-    required_by: Option<Vec<usize>>,
-    compute_function: Option<Box<dyn Fn(&[T]) -> T>>,
-}
-
-impl<T: Copy> Detail<T> {
-    fn calculate_new_value(&mut self, store: &Vec<Detail<T>>) {
-        if let Some(cf) = self.compute_function.borrow() {
-            if let Some(v) = self.required_by.borrow() {
-                let values: Vec<T> = v.iter().map(|e| store.get(*e).unwrap().value).collect();
-                self.value = cf(values.as_slice());
-            }
-        }
-    }
-
-    fn get_detail_reqs<'a, 'b: 'a>(
-        &self,
-        store: &'b mut Vec<Detail<T>>,
-    ) -> Option<Vec<&'a mut Detail<T>>> {
-        if let Some(v) = self.required_by.as_ref() {
-            let mut hm: HashMap<_, _> = store.into_iter().enumerate().collect();
-            let r = v.into_iter().flat_map(|index| hm.remove(index)).collect();
-            Some(r)
-        } else {
-            None
-        }
-    }
-}
-
-impl From<CellId> for usize {
-    fn from(cell_id: CellId) -> Self {
-        match cell_id {
-            CellId::Input(ic) => ic.id,
-            CellId::Compute(cc) => cc.id,
-        }
-    }
+#[derive(Debug, PartialEq)]
+pub enum RemoveCallbackError {
+    NonexistentCell,
+    NonexistentCallback,
 }
 
 impl From<CellId> for InputCellId {
@@ -113,10 +83,36 @@ impl From<CellId> for ComputeCellId {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub enum RemoveCallbackError {
-    NonexistentCell,
-    NonexistentCallback,
+impl From<CellId> for usize {
+    fn from(cell_id: CellId) -> Self {
+        match cell_id {
+            CellId::Input(ic) => ic.id,
+            CellId::Compute(cc) => cc.id,
+        }
+    }
+}
+
+struct Detail<T> {
+    //id: CellId,
+    value: T,
+    required_by: Option<Vec<usize>>,
+    dependent_on: Option<Vec<usize>>,
+    compute_function: Option<Box<dyn Fn(&[T]) -> T>>,
+}
+
+impl<T: Copy> Detail<T> {
+    fn get_detail_reqs<'a, 'b: 'a>(
+        &self,
+        store: &'b mut Vec<Detail<T>>,
+    ) -> Option<Vec<&'a mut Detail<T>>> {
+        if let Some(v) = self.required_by.as_ref() {
+            let mut hm: HashMap<_, _> = store.into_iter().enumerate().collect();
+            let r = v.into_iter().flat_map(|index| hm.remove(index)).collect();
+            Some(r)
+        } else {
+            None
+        }
+    }
 }
 
 pub struct Reactor<T> {
@@ -136,6 +132,7 @@ impl<T: Copy> Reactor<T> {
         let d = Detail {
             value: initial,
             required_by: None,
+            dependent_on: None,
             compute_function: None,
         };
         self.store.insert(ic.into(), d);
@@ -161,19 +158,22 @@ impl<T: Copy> Reactor<T> {
         compute_func: F,
     ) -> Result<ComputeCellId, CellId> {
         let cc = ComputeCellId::new();
+        let mut dependent_on = vec![];
         let deps: Vec<T> = dependencies
             .iter()
             .map(|c| {
                 let index: usize = (*c).into();
-                let d = self.store.get(index).unwrap();
+                dependent_on.push(index);
+                let d = self.store.get(index).unwrap(); //sj_todo need to handle error while unwrapping
                 d.value
             })
-            .collect(); //sj_todo need to handle error while unwrapping
+            .collect();
         let deps = deps.as_slice();
         let value = compute_func(deps);
         let d = Detail {
             value,
             required_by: None,
+            dependent_on: Some(dependent_on),
             compute_function: Some(Box::new(compute_func)),
         };
         self.store.insert(cc.into(), d);
@@ -213,6 +213,17 @@ impl<T: Copy> Reactor<T> {
             None
         }
     }
+    fn calculate_new_value(&self, detail: &mut Detail<T>) {
+        if let Some(cf) = detail.compute_function.as_ref() {
+            if let Some(v) = detail.dependent_on.as_ref() {
+                let values: Vec<T> = v
+                    .iter()
+                    .map(|e| self.store.get(*e).unwrap().value)
+                    .collect();
+                detail.value = cf(values.as_slice());
+            }
+        }
+    }
 
     // Sets the value of the specified input cell.
     //
@@ -225,12 +236,16 @@ impl<T: Copy> Reactor<T> {
     pub fn set_value(&mut self, ic: InputCellId, new_value: T) -> bool {
         // if ic doesnt exist in store we return false
         if let Some(indexes) = self.set_new_value(ic, new_value) {
-            let details: Vec<&mut Detail<T>> = self
+            let mut details: Vec<&mut Detail<T>> = self
                 .store
                 .iter_mut()
                 .enumerate()
                 .filter_map(|(i, d)| if indexes.contains(&i) { Some(d) } else { None })
                 .collect();
+
+            for d in details.drain(0..) {
+                //self.calculate_new_value(d);
+            }
 
             todo!();
             true
