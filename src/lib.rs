@@ -1,7 +1,11 @@
 extern crate core;
 
+mod compute_cell;
+mod input_cell;
 mod simple_tree;
 
+pub use compute_cell::ComputeCellType;
+pub use input_cell::InputCellType;
 pub use simple_tree::Node;
 
 use std::cell::RefCell;
@@ -132,43 +136,11 @@ impl<T: Copy + Debug + PartialEq> Reactor<T> {
         }
 
         let index = self.counter;
-        if let Ok(cc) = Node::create_compute(Some(deps), compute_func) {
+        if let Ok(cc) = Node::create_compute(deps, compute_func) {
             self.store.insert(index, cc.clone());
             self.counter = self.counter + 1;
         }
         Ok(ComputeCellId::new(index))
-        /*let cc = ComputeCellId::new();
-        let mut dependent_on = vec![];
-        let deps: Vec<T> = dependencies
-            .iter()
-            .map(|c| {
-                let index: usize = (*c).into();
-                dependent_on.push(index);
-                let d = self.store.get(index).unwrap(); //sj_todo need to handle error while unwrapping
-                d.value
-            })
-            .collect();
-        let deps = deps.as_slice();
-        let value = compute_func(deps);
-        let d = Detail {
-            value,
-            required_by: None,
-            dependent_on: Some(dependent_on),
-            compute_function: Some(Box::new(compute_func)),
-        };
-        self.store.insert(cc.into(), d);
-
-        for i in dependencies.iter() {
-            let index: usize = (*i).into();
-            let d = self.store.get_mut(index).unwrap();
-            if let Some(v) = &mut d.required_by {
-                v.push(cc.into());
-            } else {
-                let mut v = vec![cc.into()];
-                d.required_by = Some(v);
-            }
-        }
-        Ok(cc.into())*/
     }
 
     // Retrieves the current value of the cell, or None if the cell does not exist.
