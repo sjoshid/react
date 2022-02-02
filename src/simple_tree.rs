@@ -26,7 +26,10 @@ impl<T: Copy + Debug + PartialEq> Node<T> {
         children: Vec<Rc<RefCell<Node<T>>>>,
         compute_func: F,
     ) -> Result<Rc<RefCell<Node<T>>>, CellId> {
-        let vals: Vec<T> = children.iter().map(|v| v.as_ref().borrow().node_value).collect();
+        let vals: Vec<T> = children
+            .iter()
+            .map(|v| v.as_ref().borrow().node_value)
+            .collect();
         let vals = vals.as_slice();
         let value = compute_func(vals);
 
