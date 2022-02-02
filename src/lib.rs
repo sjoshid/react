@@ -85,7 +85,7 @@ pub struct Reactor<T> {
 }
 
 // You are guaranteed that Reactor will only be tested against types that are Copy + PartialEq.
-impl<T: Copy + Debug> Reactor<T> {
+impl<T: Copy + Debug + PartialEq> Reactor<T> {
     //sj_todo what is T is not copyable?
     pub fn new() -> Self {
         Self {

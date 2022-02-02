@@ -26,7 +26,7 @@ pub struct Node<T> {
     t: Type<T>,
 }
 
-impl<T: Copy + Debug> Node<T> {
+impl<T: Copy + Debug + PartialEq> Node<T> {
     pub fn create_input(value: T) -> Self {
         Self {
             node_value: value,
@@ -73,9 +73,9 @@ impl<T: Copy + Debug> Node<T> {
     }
 
     pub fn set_value(&mut self, value: T) {
+        self.node_value = value;
         match &mut self.t {
             Type::IC(p) => {
-                self.node_value = value;
                 if let Some(parents) = p.as_mut() {
                     parents.iter().for_each(|p| {
                         if let Some(n) = p.upgrade() {
@@ -96,27 +96,21 @@ impl<T: Copy + Debug> Node<T> {
                                         })
                                     }
                                     let new_value = cf(values.as_slice());
-                                    mut_borrow_parent.node_value = new_value;
+                                    if mut_borrow_parent.node_value != new_value {
+                                        mut_borrow_parent.set_value(new_value);
+                                    }
                                 }
                             }
-                            mut_borrow_parent.set_value(value);
                         }
                     })
                 }
             }
             Type::CC(p, c, cf) => {
-                let mut values = vec![];
-                if let Some(children) = c.as_ref() {
-                    children.iter().for_each(|c| {
-                        values.push(c.borrow().node_value);
-                    })
-                }
-                self.node_value = cf(values.as_slice());
-
                 if let Some(parents) = p.as_mut() {
-                    parents.iter_mut().for_each(|p| {
+                    parents.iter().for_each(|p| {
                         if let Some(n) = p.upgrade() {
-                            match &n.borrow_mut().t {
+                            let mut mut_borrow_parent = n.borrow_mut();
+                            match &mut_borrow_parent.t {
                                 Type::IC(_) => {
                                     panic!("IC cannot be parent!")
                                 }
@@ -127,14 +121,16 @@ impl<T: Copy + Debug> Node<T> {
                                             if c.try_borrow().is_ok() {
                                                 values.push(c.borrow().node_value);
                                             } else {
-                                                //values.push(self.node_value);
+                                                values.push(value);
                                             }
                                         })
                                     }
-                                    n.borrow_mut().node_value = cc_cf(values.as_slice());
+                                    let new_value = cc_cf(values.as_slice());
+                                    if mut_borrow_parent.node_value != new_value {
+                                        mut_borrow_parent.set_value(new_value);
+                                    }
                                 }
                             }
-                            n.borrow_mut().set_value(value);
                         }
                     })
                 }
