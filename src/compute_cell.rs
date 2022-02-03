@@ -9,7 +9,7 @@ pub struct ComputeCellType<T> {
     parents: Vec<Weak<RefCell<Node<T>>>>,
     children: Vec<Rc<RefCell<Node<T>>>>,
     compute_function: Rc<dyn Fn(&[T]) -> T>,
-    callback_function: Option<Rc<dyn FnMut(T)>>,
+    callback_function: Option<Box<dyn FnMut(T)>>,
 }
 
 impl<T: Copy + Debug + PartialEq> ComputeCellType<T> {
@@ -32,6 +32,20 @@ impl<T: Copy + Debug + PartialEq> ComputeCellType<T> {
 
     pub fn rerun_compute_function(&self, values: &[T]) -> T {
         (self.compute_function)(values)
+    }
+
+    pub fn add_callback<F: 'static + FnMut(T)>(&mut self, callback: F) {
+        self.callback_function = Some(Box::new(callback));
+    }
+
+    pub fn invoke_callback(&mut self, value: T) {
+        if let Some(cb) = &mut self.callback_function {
+            cb(value);
+        }
+    }
+
+    pub fn remove_callback(&mut self) {
+        self.callback_function = None;
     }
 }
 

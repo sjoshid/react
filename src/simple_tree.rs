@@ -74,8 +74,24 @@ impl<T: Copy + Debug + PartialEq> Node<T> {
         self.node_value
     }
 
+    pub fn add_callback<F: 'static + FnMut(T)>(&mut self, callback: F) {
+        match &mut self.t {
+            Type::IC(_) => {
+                println!("callback cannot be added to input cell. ")
+            }
+            Type::CC(cct) => {
+                cct.add_callback(callback);
+            }
+        }
+    }
+
+    pub fn remove_callback(&mut self) {
+        self.remove_callback();
+    }
+
     fn calculate_new_value(&mut self, current_child_value: T) {
-        match &self.t {
+        let mut updated_value = None;
+        match &mut self.t {
             Type::IC(ict) => { /*invalid*/ }
             Type::CC(cct) => {
                 let mut values = vec![];
@@ -89,10 +105,13 @@ impl<T: Copy + Debug + PartialEq> Node<T> {
                 }
                 let new_value = cct.rerun_compute_function(values.as_slice());
                 if new_value != self.node_value {
-                    self.set_value(new_value);
-                    //sj_todo do something will callback here?
+                    updated_value = Some(new_value); // I would love to call self.set_value() here but borrower doesnt like it.
+                    cct.invoke_callback(new_value);
                 }
             }
+        }
+        if let Some(new_value) = updated_value {
+            self.set_value(new_value);
         }
     }
 }

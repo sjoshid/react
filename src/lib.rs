@@ -38,7 +38,16 @@ impl ComputeCellId {
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct CallbackId();
+pub struct CallbackId{
+    id: usize
+}
+
+impl CallbackId {
+    pub fn new(index: usize) -> Self {
+        let id = CallbackId { id: index };
+        id
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
 pub enum CellId {
@@ -191,12 +200,18 @@ impl<T: Copy + Debug + PartialEq> Reactor<T> {
     // * Exactly once if the compute cell's value changed as a result of the set_value call.
     //   The value passed to the callback should be the final value of the compute cell after the
     //   set_value call.
-    pub fn add_callback<F: FnMut(T)>(
+    pub fn add_callback<F: 'static + FnMut(T)>(
         &mut self,
-        _id: ComputeCellId,
-        _callback: F,
+        id: ComputeCellId,
+        callback: F,
     ) -> Option<CallbackId> {
-        unimplemented!()
+        let index = id.id;
+        if let Some(cc) = self.store.get_mut(index) {
+            cc.as_ref().borrow_mut().add_callback(callback);
+            Some(CallbackId::new(index))
+        } else {
+            None
+        }
     }
 
     // Removes the specified callback, using an ID returned from add_callback.
