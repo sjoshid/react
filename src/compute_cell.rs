@@ -47,9 +47,21 @@ impl<T: Copy + Debug + PartialEq> ComputeCellType<T> {
     pub fn remove_callback(&mut self) {
         self.callback_function = None;
     }
+
+    pub fn parent_iter(&self) -> Map<slice::Iter<Weak<RefCell<Node<T>>>>, fn(&Weak<RefCell<Node<T>>>) -> Rc<RefCell<Node<T>>>> {
+        self.parents.iter().map(|e| e.upgrade().unwrap())
+    }
+
+    pub fn children_iter(&self) -> slice::Iter<Rc<RefCell<Node<T>>>> {
+        self.children.iter()
+    }
+
+    /*pub fn parent_iter_mut(&self) -> Map<slice::Iter<Weak<RefCell<Node<T>>>>, fn(&Weak<RefCell<Node<T>>>) -> Rc<RefCell<Node<T>>>> {
+        self.parents.iter().map(|e| e.upgrade().unwrap())
+    }*/
 }
 
-impl<'a, T: Copy + Debug + PartialEq> IntoIterator for &'a mut ComputeCellType<T> {
+/*impl<'a, T: Copy + Debug + PartialEq> IntoIterator for &'a mut ComputeCellType<T> {
     type Item = Rc<RefCell<Node<T>>>;
     type IntoIter = Map<
         slice::IterMut<'a, Weak<RefCell<Node<T>>>>,
@@ -68,4 +80,4 @@ impl<'a, T: Copy + Debug + PartialEq> IntoIterator for &'a ComputeCellType<T> {
     fn into_iter(self) -> Self::IntoIter {
         self.children.iter()
     }
-}
+}*/

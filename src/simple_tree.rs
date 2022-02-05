@@ -63,7 +63,7 @@ impl<T: Copy + Debug + PartialEq> Node<T> {
                 }
             }
             Type::CC(cct) => {
-                for parent in cct.into_iter() {
+                for parent in cct.parent_iter() {
                     parent.borrow_mut().calculate_new_value(value);
                 }
             }
@@ -95,7 +95,7 @@ impl<T: Copy + Debug + PartialEq> Node<T> {
             Type::IC(ict) => { /*invalid*/ }
             Type::CC(cct) => {
                 let mut values = vec![];
-                for child in cct.into_iter() {
+                for child in cct.children_iter() {
                     if let Ok(c) = child.try_borrow() {
                         let v = c.node_value;
                         values.push(v);
