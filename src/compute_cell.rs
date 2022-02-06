@@ -1,4 +1,4 @@
-use crate::Node;
+use crate::{Node, RemoveCallbackError};
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::iter::Map;
@@ -44,8 +44,13 @@ impl<'a, T: Copy + Debug + PartialEq> ComputeCellType<'a, T> {
         }
     }
 
-    pub fn remove_callback(&mut self) {
-        self.callback_function = None;
+    pub fn remove_callback(&mut self) -> Result<(), RemoveCallbackError> {
+        if self.callback_function.is_some() {
+            self.callback_function = None;
+            Ok(())
+        } else {
+            Err(RemoveCallbackError::NonexistentCallback)
+        }
     }
 
     pub fn parent_iter(&self) -> Map<slice::Iter<Weak<RefCell<Node<'a, T>>>>, fn(&Weak<RefCell<Node<'a, T>>>) -> Rc<RefCell<Node<'a, T>>>> {

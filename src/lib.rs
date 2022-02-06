@@ -221,13 +221,14 @@ impl<'a, T: Copy + Debug + PartialEq> Reactor<'a, T> {
     // A removed callback should no longer be called.
     pub fn remove_callback(
         &mut self,
-        cell: ComputeCellId,
+        id: ComputeCellId,
         callback: CallbackId,
     ) -> Result<(), RemoveCallbackError> {
-        unimplemented!(
-            "Remove the callback identified by the CallbackId {:?} from the cell {:?}",
-            callback,
-            cell,
-        )
+        let index = id.id;
+        if let Some(cc) = self.store.get_mut(index) {
+            cc.as_ref().borrow_mut().remove_callback()
+        } else {
+            Err(RemoveCallbackError::NonexistentCell)
+        }
     }
 }

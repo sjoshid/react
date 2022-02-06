@@ -153,8 +153,7 @@ impl CallbackRecorder {
     }
 }
 
-/*#[test]
-#[ignore]
+#[test]
 fn compute_cells_fire_callbacks() {
     let cb = CallbackRecorder::new();
     let mut reactor = Reactor::new();
@@ -167,10 +166,9 @@ fn compute_cells_fire_callbacks() {
         .is_some());
     assert!(reactor.set_value(input, 3));
     cb.expect_to_have_been_called_with(4);
-}*/
+}
 
-/*#[test]
-#[ignore]
+#[test]
 fn error_adding_callback_to_nonexistent_cell() {
     let mut dummy_reactor = Reactor::new();
     let input = dummy_reactor.create_input(1);
@@ -184,7 +182,6 @@ fn error_adding_callback_to_nonexistent_cell() {
 }
 
 #[test]
-#[ignore]
 fn error_removing_callback_from_nonexisting_cell() {
     let mut dummy_reactor = Reactor::new();
     let dummy_input = dummy_reactor.create_input(1);
@@ -208,7 +205,6 @@ fn error_removing_callback_from_nonexisting_cell() {
 }
 
 #[test]
-#[ignore]
 fn callbacks_only_fire_on_change() {
     let cb = CallbackRecorder::new();
     let mut reactor = Reactor::new();
@@ -230,7 +226,6 @@ fn callbacks_only_fire_on_change() {
 }
 
 #[test]
-#[ignore]
 fn callbacks_can_be_called_multiple_times() {
     let cb = CallbackRecorder::new();
     let mut reactor = Reactor::new();
@@ -249,7 +244,6 @@ fn callbacks_can_be_called_multiple_times() {
 }
 
 #[test]
-#[ignore]
 fn callbacks_can_be_called_from_multiple_cells() {
     let cb1 = CallbackRecorder::new();
     let cb2 = CallbackRecorder::new();
@@ -392,7 +386,7 @@ fn callbacks_should_not_be_called_if_dependencies_change_but_output_value_doesnt
         assert!(reactor.set_value(input, i));
         cb.expect_not_to_have_been_called();
     }
-}*/
+}
 
 #[test]
 fn test_adder_with_boolean_values() {

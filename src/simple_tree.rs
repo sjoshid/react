@@ -1,4 +1,4 @@
-use crate::{CellId, ComputeCellType, InputCellType};
+use crate::{CellId, ComputeCellType, InputCellType, RemoveCallbackError};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::fmt::Debug;
@@ -77,7 +77,7 @@ impl<'a, T: Copy + Debug + PartialEq> Node<'a, T> {
     pub fn add_callback<F: 'a + FnMut(T)>(&mut self, callback: F) {
         match &mut self.t {
             Type::IC(_) => {
-                println!("callback cannot be added to input cell. ")
+                panic!("callback cannot be added to input cell. ")
             }
             Type::CC(cct) => {
                 cct.add_callback(callback);
@@ -85,8 +85,16 @@ impl<'a, T: Copy + Debug + PartialEq> Node<'a, T> {
         }
     }
 
-    pub fn remove_callback(&mut self) {
-        self.remove_callback();
+    pub fn remove_callback(&mut self) -> Result<(), RemoveCallbackError>{
+        match &mut self.t {
+            Type::IC(_) => {
+                panic!("callback cannot be removed from input cell. ");
+                unimplemented!()
+            }
+            Type::CC(cct) => {
+                cct.remove_callback()
+            }
+        }
     }
 
     fn calculate_new_value(&mut self, current_child_value: T) {
