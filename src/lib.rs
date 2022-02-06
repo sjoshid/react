@@ -92,13 +92,13 @@ impl From<CellId> for usize {
     }
 }
 
-pub struct Reactor<T> {
-    store: Vec<Rc<RefCell<Node<T>>>>,
+pub struct Reactor<'a, T> {
+    store: Vec<Rc<RefCell<Node<'a, T>>>>,
     counter: usize,
 }
 
 // You are guaranteed that Reactor will only be tested against types that are Copy + PartialEq.
-impl<T: Copy + Debug + PartialEq> Reactor<T> {
+impl<'a, T: Copy + Debug + PartialEq> Reactor<'a, T> {
     //sj_todo what is T is not copyable?
     pub fn new() -> Self {
         Self {

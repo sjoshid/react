@@ -4,17 +4,17 @@ use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::{Rc, Weak};
 
-enum Type<T> {
-    IC(InputCellType<T>),
-    CC(ComputeCellType<T>),
+enum Type<'a, T> {
+    IC(InputCellType<'a, T>),
+    CC(ComputeCellType<'a, T>),
 }
 
-pub struct Node<T> {
+pub struct Node<'a, T> {
     node_value: T,
-    t: Type<T>,
+    t: Type<'a, T>,
 }
 
-impl<T: Copy + Debug + PartialEq> Node<T> {
+impl<'a, T: Copy + Debug + PartialEq> Node<'a, T> {
     pub fn create_input(value: T) -> Self {
         Self {
             node_value: value,
@@ -23,9 +23,9 @@ impl<T: Copy + Debug + PartialEq> Node<T> {
     }
 
     pub fn create_compute<F: 'static + Fn(&[T]) -> T>(
-        children: Vec<Rc<RefCell<Node<T>>>>,
+        children: Vec<Rc<RefCell<Node<'a, T>>>>,
         compute_func: F,
-    ) -> Result<Rc<RefCell<Node<T>>>, CellId> {
+    ) -> Result<Rc<RefCell<Node<'a, T>>>, CellId> {
         let vals: Vec<T> = children
             .iter()
             .map(|v| v.as_ref().borrow().node_value)
@@ -58,7 +58,7 @@ impl<T: Copy + Debug + PartialEq> Node<T> {
         self.node_value = value;
         match &mut self.t {
             Type::IC(ict) => {
-                for parent in ict.into_iter() {
+                for parent in ict.parent_iter() {
                     parent.borrow_mut().calculate_new_value(value);
                 }
             }

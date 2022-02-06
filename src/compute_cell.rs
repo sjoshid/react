@@ -5,16 +5,16 @@ use std::iter::Map;
 use std::rc::{Rc, Weak};
 use std::slice;
 
-pub struct ComputeCellType<T> {
-    parents: Vec<Weak<RefCell<Node<T>>>>,
-    children: Vec<Rc<RefCell<Node<T>>>>,
+pub struct ComputeCellType<'a, T> {
+    parents: Vec<Weak<RefCell<Node<'a, T>>>>,
+    children: Vec<Rc<RefCell<Node<'a, T>>>>,
     compute_function: Rc<dyn Fn(&[T]) -> T>,
-    callback_function: Option<Box<dyn FnMut(T)>>,
+    callback_function: Option<Box<dyn FnMut(T) + 'a>>,
 }
 
-impl<T: Copy + Debug + PartialEq> ComputeCellType<T> {
+impl<'a, T: Copy + Debug + PartialEq> ComputeCellType<'a, T> {
     pub fn new<F: 'static + Fn(&[T]) -> T>(
-        children: Vec<Rc<RefCell<Node<T>>>>,
+        children: Vec<Rc<RefCell<Node<'a, T>>>>,
         compute_function: F,
     ) -> Self {
         Self {
@@ -25,7 +25,7 @@ impl<T: Copy + Debug + PartialEq> ComputeCellType<T> {
         }
     }
 
-    pub fn add_parent(&mut self, node: Rc<RefCell<Node<T>>>) {
+    pub fn add_parent(&mut self, node: Rc<RefCell<Node<'a, T>>>) {
         let down = Rc::downgrade(&node);
         self.parents.push(down);
     }
@@ -34,7 +34,7 @@ impl<T: Copy + Debug + PartialEq> ComputeCellType<T> {
         (self.compute_function)(values)
     }
 
-    pub fn add_callback<F: 'static + FnMut(T)>(&mut self, callback: F) {
+    pub fn add_callback<F: 'a + FnMut(T)>(&mut self, callback: F) {
         self.callback_function = Some(Box::new(callback));
     }
 
@@ -48,11 +48,11 @@ impl<T: Copy + Debug + PartialEq> ComputeCellType<T> {
         self.callback_function = None;
     }
 
-    pub fn parent_iter(&self) -> Map<slice::Iter<Weak<RefCell<Node<T>>>>, fn(&Weak<RefCell<Node<T>>>) -> Rc<RefCell<Node<T>>>> {
+    pub fn parent_iter(&self) -> Map<slice::Iter<Weak<RefCell<Node<'a, T>>>>, fn(&Weak<RefCell<Node<'a, T>>>) -> Rc<RefCell<Node<'a, T>>>> {
         self.parents.iter().map(|e| e.upgrade().unwrap())
     }
 
-    pub fn children_iter(&self) -> slice::Iter<Rc<RefCell<Node<T>>>> {
+    pub fn children_iter(&self) -> slice::Iter<Rc<RefCell<Node<'a, T>>>> {
         self.children.iter()
     }
 
