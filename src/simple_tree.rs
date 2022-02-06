@@ -74,7 +74,7 @@ impl<'a, T: Copy + Debug + PartialEq> Node<'a, T> {
         self.node_value
     }
 
-    pub fn add_callback<F: 'static + FnMut(T)>(&mut self, callback: F) {
+    pub fn add_callback<F: 'a + FnMut(T)>(&mut self, callback: F) {
         match &mut self.t {
             Type::IC(_) => {
                 println!("callback cannot be added to input cell. ")
