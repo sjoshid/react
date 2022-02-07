@@ -38,8 +38,8 @@ impl ComputeCellId {
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct CallbackId{
-    id: usize
+pub struct CallbackId {
+    id: usize,
 }
 
 impl CallbackId {
@@ -207,8 +207,7 @@ impl<'a, T: Copy + Debug + PartialEq> Reactor<'a, T> {
     ) -> Option<CallbackId> {
         let index = id.id;
         if let Some(cc) = self.store.get_mut(index) {
-            cc.as_ref().borrow_mut().add_callback(callback);
-            Some(CallbackId::new(index))
+            cc.as_ref().borrow_mut().add_callback(callback)
         } else {
             None
         }
@@ -226,7 +225,7 @@ impl<'a, T: Copy + Debug + PartialEq> Reactor<'a, T> {
     ) -> Result<(), RemoveCallbackError> {
         let index = id.id;
         if let Some(cc) = self.store.get_mut(index) {
-            cc.as_ref().borrow_mut().remove_callback()
+            cc.as_ref().borrow_mut().remove_callback(callback)
         } else {
             Err(RemoveCallbackError::NonexistentCell)
         }

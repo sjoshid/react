@@ -21,28 +21,12 @@ impl<'a, T: Copy + Debug + PartialEq> InputCellType<'a, T> {
         self.parents.push(down);
     }
 
-    pub fn parent_iter(&self) -> Map<slice::Iter<Weak<RefCell<Node<'a, T>>>>, fn(&Weak<RefCell<Node<'a, T>>>) -> Rc<RefCell<Node<'a, T>>>> {
+    pub fn parent_iter(
+        &self,
+    ) -> Map<
+        slice::Iter<Weak<RefCell<Node<'a, T>>>>,
+        fn(&Weak<RefCell<Node<'a, T>>>) -> Rc<RefCell<Node<'a, T>>>,
+    > {
         self.parents.iter().map(|e| e.upgrade().unwrap())
     }
 }
-
-/*impl<'a, T: Copy + Debug + PartialEq> IntoIterator for &'a InputCellType<T> {
-    type Item = &'a Weak<RefCell<Node<T>>>;
-    type IntoIter = slice::Iter<'a, Weak<RefCell<Node<T>>>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.parents.iter()
-    }
-}
-
-impl<'a, T: Copy + Debug + PartialEq> IntoIterator for &'a mut InputCellType<T> {
-    type Item = Rc<RefCell<Node<T>>>;
-    type IntoIter = Map<
-        slice::IterMut<'a, Weak<RefCell<Node<T>>>>,
-        fn(&'a mut Weak<RefCell<Node<T>>>) -> Rc<RefCell<Node<T>>>,
-    >;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.parents.iter_mut().map(|e| e.upgrade().unwrap())
-    }
-}*/
