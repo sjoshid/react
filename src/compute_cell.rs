@@ -44,28 +44,24 @@ impl<'a, T: Copy + Debug + PartialEq> ComputeCellType<'a, T> {
     }
 
     pub fn invoke_callback(&mut self, value: T) {
-        self.callback_function.iter_mut().filter(|e| e.is_some()).for_each(|e| {
-            //panic!("hey hey");
-            (e.as_mut().unwrap())(value);
-        });
+        self.callback_function
+            .iter_mut()
+            .filter(|e| e.is_some())
+            .for_each(|e| {
+                (e.as_mut().unwrap())(value);
+            });
     }
 
     pub fn remove_callback(&mut self, callback_id: CallbackId) -> Result<(), RemoveCallbackError> {
         let index = callback_id.id;
 
-        if index < self.callback_function.len() {
-            if let Some(cb) = self.callback_function.get(index) {
-                if cb.is_some() {
-                    std::mem::replace(&mut self.callback_function[index], None);
-                    Ok(())
-                } else {
-                    Err(RemoveCallbackError::NonexistentCallback)
-                }
-            } else {
-                Err(RemoveCallbackError::NonexistentCallback)
+        match self.callback_function.get(index) {
+            None => Err(RemoveCallbackError::NonexistentCallback),
+            Some(cb) if cb.is_some() => {
+                std::mem::replace(&mut self.callback_function[index], None);
+                Ok(())
             }
-        } else {
-            Err(RemoveCallbackError::NonexistentCallback)
+            _ => Err(RemoveCallbackError::NonexistentCallback),
         }
     }
 
