@@ -10,7 +10,6 @@ pub struct ComputeCellType<'a, T> {
     children: Vec<Rc<RefCell<Node<'a, T>>>>,
     compute_function: Rc<dyn Fn(&[T]) -> T>,
     callback_function: Vec<Option<Box<dyn FnMut(T) + 'a>>>,
-    callback_index: usize,
 }
 
 impl<'a, T: Copy + Debug + PartialEq> ComputeCellType<'a, T> {
@@ -23,7 +22,6 @@ impl<'a, T: Copy + Debug + PartialEq> ComputeCellType<'a, T> {
             children,
             compute_function: Rc::new(compute_function),
             callback_function: vec![],
-            callback_index: 0,
         }
     }
 
@@ -43,7 +41,7 @@ impl<'a, T: Copy + Debug + PartialEq> ComputeCellType<'a, T> {
         Some(id)
     }
 
-    pub fn invoke_callback(&mut self, value: T) {
+    pub fn invoke_callbacks(&mut self, value: T) {
         self.callback_function
             .iter_mut()
             .filter(|e| e.is_some())

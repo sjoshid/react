@@ -94,7 +94,6 @@ impl From<CellId> for usize {
 
 pub struct Reactor<'a, T> {
     store: Vec<Rc<RefCell<Node<'a, T>>>>,
-    counter: usize,
 }
 
 // You are guaranteed that Reactor will only be tested against types that are Copy + PartialEq.
@@ -103,19 +102,15 @@ impl<'a, T: Copy + Debug + PartialEq> Reactor<'a, T> {
     pub fn new() -> Self {
         Self {
             store: vec![],
-            counter: 0,
         }
     }
 
     // Creates an input cell with the specified initial value, returning its ID.
     pub fn create_input(&mut self, initial: T) -> InputCellId {
-        let index = self.counter;
-
         let ic = Node::create_input(initial);
         let rc_p1 = Rc::new(RefCell::new(ic));
-        self.store.insert(index, rc_p1.clone());
-        self.counter = self.counter + 1;
-        InputCellId::new(index)
+        self.store.push(rc_p1.clone());
+        InputCellId::new(self.store.len() - 1)
     }
 
     pub fn create_compute<F: 'static + Fn(&[T]) -> T>(
@@ -144,12 +139,10 @@ impl<'a, T: Copy + Debug + PartialEq> Reactor<'a, T> {
             }
         }
 
-        let index = self.counter;
         if let Ok(cc) = Node::create_compute(deps, compute_func) {
-            self.store.insert(index, cc.clone());
-            self.counter = self.counter + 1;
+            self.store.push(cc.clone());
         }
-        Ok(ComputeCellId::new(index))
+        Ok(ComputeCellId::new(self.store.len() - 1))
     }
 
     // Retrieves the current value of the cell, or None if the cell does not exist.

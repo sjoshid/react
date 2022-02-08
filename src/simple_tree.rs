@@ -111,7 +111,7 @@ impl<'a, T: Copy + Debug + PartialEq> Node<'a, T> {
                 let new_value = cct.rerun_compute_function(values.as_slice());
                 if new_value != self.node_value {
                     updated_value = Some(new_value); // I would love to call self.set_value() here but borrower doesnt like it.
-                    cct.invoke_callback(new_value);
+                    cct.invoke_callbacks(new_value);
                 }
             }
         }
