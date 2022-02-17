@@ -2,10 +2,12 @@ use crate::{CallbackId, Node, RemoveCallbackError};
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::iter::Map;
+use std::ops::AddAssign;
 use std::rc::{Rc, Weak};
 use std::slice;
 
 pub struct ComputeCellType<'a, T> {
+    //id: CallbackId,
     parents: Vec<Weak<RefCell<Node<'a, T>>>>,
     children: Vec<Rc<RefCell<Node<'a, T>>>>,
     compute_function: Rc<dyn Fn(&[T]) -> T>,

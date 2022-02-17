@@ -9,6 +9,7 @@ pub use input_cell::InputCellType;
 pub use simple_tree::Node;
 
 use std::cell::RefCell;
+use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::rc::Rc;
@@ -100,9 +101,7 @@ pub struct Reactor<'a, T> {
 impl<'a, T: Copy + Debug + PartialEq> Reactor<'a, T> {
     //sj_todo what is T is not copyable?
     pub fn new() -> Self {
-        Self {
-            store: vec![],
-        }
+        Self { store: vec![] }
     }
 
     // Creates an input cell with the specified initial value, returning its ID.
